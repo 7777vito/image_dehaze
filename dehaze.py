@@ -53,8 +53,8 @@ def TransmissionEstimate(im, A, sz):
     for ind in range(0, 3):
         im3[:, :, ind] = im[:, :, ind]/A[0, ind]
 
-    # transmission = 1 - omega*dark_channel_prior(im3, sz)
-    transmission = 1 - omega*DarkChannel(im3, sz)
+    transmission = 1 - omega*dark_channel_prior(im3, sz)
+    # transmission = 1 - omega*DarkChannel(im3, sz)
     return transmission
 
 
@@ -86,9 +86,51 @@ def Guidedfilter(im, p, r, eps):
 
 #     return t
 
+#
+def edge(im, th=200):  # edge non-maximum suppression
+    """ Detect edges in an image based on the provided equations. """
+    gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+    rows, cols = gray.shape
+
+    # Initialize edge map
+    edges = np.zeros_like(gray, dtype=np.float64)
+
+    for i in range(1, rows-1):
+        for j in range(1, cols-1):
+            # Define the 3x3 neighborhood
+            a = gray[i-1, j-1]
+            b = gray[i-1, j]
+            c = gray[i-1, j+1]
+            d = gray[i, j-1]
+            e = gray[i, j]
+            f = gray[i, j+1]
+            g = gray[i+1, j-1]
+            h = gray[i+1, j]
+            v_i_j = gray[i, j]
+
+            # Compute E1, E2, E3, E4 based on provided conditions
+            E1 = max(abs(a - v_i_j), abs(h - v_i_j), abs(a - h))
+            E2 = max(abs(c - v_i_j), abs(f - v_i_j), abs(c - f))
+            E3 = max(abs(b - v_i_j), abs(g - v_i_j), abs(b - g))
+            E4 = max(abs(d - v_i_j), abs(e - v_i_j), abs(d - e))
+
+            # print(E1, E2, E3, E4)
+            # Determine if the pixel is an edge
+            Is_edge = max(E1, E2, E3, E4) > th
+            if Is_edge:
+                print(max(E1, E2, E3, E4))
+            edges[i, j] = 1 if Is_edge else 0
+
+    return edges
+
+
 def TransmissionRefine(im, et, edge_threshold=0.1):
     gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-    edges = cv2.Canny(gray, 100, 200)
+    # edges = cv2.Canny(gray, 100, 200, L2gradient=True)
+    edges = edge(im)
+    cv2.imshow("edges", edges)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
     edges = edges / 255.0  # Normalize edges to [0, 1]
 
     # Initialize transmission refinement
@@ -109,6 +151,7 @@ def TransmissionRefine(im, et, edge_threshold=0.1):
     # show the mean filter image
     for i in range(rows):
         for j in range(cols):
+            print(edges[i, j])
             if edges[i, j] > edge_threshold:
                 # Apply low-pass filter for edge regions
                 # to [0, 1]
@@ -133,7 +176,7 @@ def Recover(im, t, A, tx=0.1):
 if __name__ == '__main__':
     # read all png in path
     path = "./image"
-    output = "./output_origin"
+    output = ""
     import os
     # import sys
     for fn in os.listdir(path):
@@ -168,3 +211,4 @@ if __name__ == '__main__':
         print(fn)
         # cv2.waitKey()
         cv2.destroyAllWindows()
+        break
