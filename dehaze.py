@@ -79,7 +79,7 @@ def edge_detection(im):
     return img
 
 
-def TransmissionRefine(im, et, et3, edge_threshold=0.1):
+def TransmissionRefine(im, et, edge_threshold=0.1):
     gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
     edges = edge_detection(gray)
     edges = edges / 255.0  # Normalize edges to [0, 1]
@@ -88,7 +88,7 @@ def TransmissionRefine(im, et, et3, edge_threshold=0.1):
     # cv2.destroyAllWindows()
 
     # Initialize transmission refinement
-    t_refined = np.zeros_like(et)
+    t_refined = et.copy()
     rows, cols = et.shape
 
     # low-pass filter kernel
@@ -177,11 +177,10 @@ if __name__ == '__main__':
     dark15 = DarkChannel(I, 15)
     dark3 = DarkChannel(I, 3)
     dark1 = DarkChannel(I, 1)
-    dark = DarkChannel(I, 1)
+    dark = DarkChannel(I, 3)
     A = AtmLight(I, dark)
-    te = TransmissionEstimate(I, A, 1)
-    te3 = TransmissionEstimate(I, A, 3)
-    t = TransmissionRefine(src, te, te3)
+    te = TransmissionEstimate(I, A, 3)
+    t = TransmissionRefine(src, te)
     t_old = TransmissionRefine_old(src, te)
     J = Recover(I, t, A, 0.01)
     J_old = Recover(I, t_old, A, 0.01)
