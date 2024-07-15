@@ -57,13 +57,38 @@ def TransmissionEstimate(im, A, sz):
     return transmission
 
 
-def TransmissionRefine(im, et, edge_threshold=0.1):
+def edge_detection(im):
+    img = np.zeros(im.shape, im.dtype)
+    # without canny edge detection
+    for y in range(1, im.shape[0] - 1):
+        for x in range(1, im.shape[1] - 1):
+            a = int(im[y-1, x-1])
+            b = int(im[y-1, x])
+            c = int(im[y-1, x+1])
+            d = int(im[y, x-1])
+            mid = int(im[y, x])
+            e = int(im[y, x+1])
+            f = int(im[y+1, x-1])
+            g = int(im[y+1, x])
+            h = int(im[y+1, x+1])
+            tmp = [a-mid, b-mid, c-mid, d-mid, h-mid,
+                   f-mid, g-mid, e-mid, a-h, c-f, b-g, d-e]
+            abs_tmp = [abs(i) for i in tmp]
+            max_tmp = max(abs_tmp)
+            img[y, x] = max_tmp
+    return img
+
+
+def TransmissionRefine(im, et, et3, edge_threshold=0.1):
     gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-    edges = cv2.Canny(gray, 100, 200)
+    edges = edge_detection(gray)
     edges = edges / 255.0  # Normalize edges to [0, 1]
+    # cv2.imshow("edges", edges)
+    # cv2.waitKey()
+    # cv2.destroyAllWindows()
 
     # Initialize transmission refinement
-    t_refined = et.copy()
+    t_refined = np.zeros_like(et)
     rows, cols = et.shape
 
     # low-pass filter kernel
@@ -76,7 +101,12 @@ def TransmissionRefine(im, et, edge_threshold=0.1):
     # show the low-pass filter image
 
     # mean filter
+    # fix_gray = gray/255.0
     mean_filter = cv2.blur(et, (3, 3))
+    # cv2.imshow("mean_filter", mean_filter)
+    # cv2.imshow("low_pass_filter", low_pass_filter)
+    # cv2.waitKey()
+    # cv2.destroyAllWindows()
     # show the mean filter image
     for i in range(rows):
         for j in range(cols):
@@ -144,15 +174,22 @@ if __name__ == '__main__':
 
     I = src.astype('float64')/255
 
-    dark = dark_channel_prior(I, 15)
+    dark15 = DarkChannel(I, 15)
+    dark3 = DarkChannel(I, 3)
+    dark1 = DarkChannel(I, 1)
+    dark = DarkChannel(I, 1)
     A = AtmLight(I, dark)
-    te = TransmissionEstimate(I, A, 3)
-    t = TransmissionRefine(src, te)
+    te = TransmissionEstimate(I, A, 1)
+    te3 = TransmissionEstimate(I, A, 3)
+    t = TransmissionRefine(src, te, te3)
     t_old = TransmissionRefine_old(src, te)
-    J = Recover(I, t, A, 0.1)
-    J_old = Recover(I, t_old, A, 0.1)
+    J = Recover(I, t, A, 0.01)
+    J_old = Recover(I, t_old, A, 0.01)
 
-    cv2.imshow("dark", dark)
+    # cv2.imshow("dark", dark)
+    cv2.imshow("dark15", dark15)
+    cv2.imshow("dark3", dark3)
+    cv2.imshow("dark1", dark1)
     cv2.imshow("t", t)
     cv2.imshow("t_old", t_old)
     cv2.imshow('I', src)
